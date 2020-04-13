@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">OpenCV Native Template</string>
+    <string name="hello">Hello</string>
+    <string name="action">Do Native</string>
+</resources>
