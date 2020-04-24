@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.WindowManager;
 
 import androidx.appcompat.app.AlertDialog;
@@ -30,12 +31,17 @@ public class HelloOpenCvActivity extends AppCompatActivity implements CameraBrid
     private Mat matInput;
     private Mat matResult;
 
+    private FramesHarvester mHarvestor;
+
     static {
         System.loadLibrary( "opencv_java4" );
         System.loadLibrary( "native-lib" );
     }
+    public native void convertRGBtoGray(long matAddrInput, long matAddrResult);
+    public native void initVideoWriter(int w, int h);
+    public native void recordVideo(long matAddrInput);
+    public native void closeVideoWriter();
 
-    public native void ConvertRGBtoGray(long matAddrInput, long matAddrResult);
 
     // Callback Method
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback( this ){
@@ -74,6 +80,9 @@ public class HelloOpenCvActivity extends AppCompatActivity implements CameraBrid
         mOpenCvCameraView.setVisibility( SurfaceView.VISIBLE );
         mOpenCvCameraView.setCvCameraViewListener( this );
         mOpenCvCameraView.setCameraIndex( 0 );
+
+        mHarvestor = new FramesHarvester("PreFrameHarvester");
+        mHarvestor.startTimerForHarvestThread();
     }
 
     @Override
@@ -82,6 +91,7 @@ public class HelloOpenCvActivity extends AppCompatActivity implements CameraBrid
         if(mOpenCvCameraView != null){
             mOpenCvCameraView.disableView();
         }
+        mHarvestor.stopTimerForHarvestThread();
     }
 
     @Override
@@ -107,21 +117,28 @@ public class HelloOpenCvActivity extends AppCompatActivity implements CameraBrid
     ////////////////////////////////////////////////////
     // Methods for OpenCV the Camera Library
     ////////////////////////////////////////////////////
-    public void onCameraViewStarted(int width, int height){}
+    public void onCameraViewStarted(int width, int height){
+        Log.i(TAG, "calls onCameraViewsStarted( "+width+", "+height+")");
+        initVideoWriter(width, height);
+    }
 
-    public void onCameraViewStopped() {}
+    public void onCameraViewStopped() {
+        Log.i(TAG, "calls onCameraViewStopped()");
+        closeVideoWriter();
+    }
 
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame){
         // todo code for manipulation for frames
         matInput = inputFrame.rgba();
+        mHarvestor.setTempRepoMat( matInput );
 
         if( matResult == null){
             matResult = new Mat(matInput.rows(), matInput.cols(), matInput.type());
         }
 
-        ConvertRGBtoGray( matInput.getNativeObjAddr(), matResult.getNativeObjAddr());
+//        recordVideo( matInput.getNativeObjAddr());
 
-        return matResult;
+        return matInput;
     }
 
     protected List<? extends CameraBridgeViewBase> getCameraViewList() {
@@ -192,6 +209,11 @@ public class HelloOpenCvActivity extends AppCompatActivity implements CameraBrid
             }
         } );
         builder.create().show();
+    }
+
+    public void onCheckClick(View view){
+        Log.d(TAG, "check button clicked");
+        mHarvestor.collectAndCheckFrames();
     }
 
 }
